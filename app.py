@@ -452,7 +452,12 @@ def unlike_message(message_id):
         g.user.messages_liked.remove(message_to_unlike)
         db.session.commit()
 
-    return redirect(request.form.get('referring_page', '/'))
+    return redirect(
+        request.form.get(
+            'referring_page',
+            f'/messages/{message_id}'
+        )
+    )
 
 
 ##############################################################################

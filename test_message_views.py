@@ -10,31 +10,16 @@ from unittest import TestCase
 
 from models import db, Message, User, Like
 
-# BEFORE we import our app, let's set an environmental variable
-# to use a different database for tests (we need to do this
-# before we import our app, since that will have already
-# connected to the database
-
 os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
-
-# Now we can import app
 
 from app import app, CURR_USER_KEY
 
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
-# This is a bit of hack, but don't use Flask DebugToolbar
-
 app.config['DEBUG_TB_HOSTS'] = ['dont-show-debug-toolbar']
-
-# Create our tables (we do this here, so we only create the tables
-# once for all tests --- in each test, we'll delete the data
-# and create fresh new clean test data
 
 db.drop_all()
 db.create_all()
-
-# Don't have WTForms use CSRF at all, since it's a pain to test
 
 app.config['WTF_CSRF_ENABLED'] = False
 
@@ -51,143 +36,149 @@ class MessageBaseViewTestCase(TestCase):
         db.session.add_all([self.m1])
         db.session.commit()
 
-# class MessageAddViewTestCase(MessageBaseViewTestCase):
-#     def test_add_message_form(self):
-#         """Should load add message form"""
+class MessageAddViewTestCase(MessageBaseViewTestCase):
+    def test_add_message_form(self):
+        """Should load add message form"""
 
-#         with app.test_client() as c:
-#             with c.session_transaction() as sess:
-#                 sess[CURR_USER_KEY] = self.u1.id
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1.id
 
-#             resp = c.get("/messages/new")
-#             html = resp.get_data(as_text=True)
+            resp = c.get("/messages/new")
+            html = resp.get_data(as_text=True)
 
-#             self.assertEqual(resp.status_code, 200)
-#             self.assertIn("Comment for messages/create.html loaded.", html)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Comment for messages/create.html loaded.", html)
 
-    # def test_add_message(self):
-    #     """Should be able to add messages"""
+    def test_add_message(self):
+        """Should be able to add messages"""
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.u1.id
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1.id
 
-    #         resp = c.post("/messages/new", data={"text": "Hello"})
+            resp = c.post("/messages/new", data={"text": "Hello"})
 
-    #         self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.status_code, 302)
 
-    #         self.assertIsNotNone(Message
-    #                              .query
-    #                              .filter_by(text="Hello")
-    #                              .one_or_none())
-    #         self.assertEqual(Message.query.count(), 2)
-    #         self.assertNotIn(self.m1.id, self.u2.messages)
+            self.assertIsNotNone(Message
+                                 .query
+                                 .filter_by(text="Hello")
+                                 .one_or_none())
+            self.assertEqual(Message.query.count(), 2)
+            self.assertNotIn(self.m1.id, self.u2.messages)
 
-    # def test_add_message_unauth(self):
-    #     """Should not be able to add messages if not logged-in"""
+    def test_add_message_unauth(self):
+        """Should not be able to add messages if not logged-in"""
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = None
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = None
 
-    #         resp = c.post("/messages/new", follow_redirects=True)
-    #         html = resp.get_data(as_text=True)
+            resp = c.post("/messages/new", follow_redirects=True)
+            html = resp.get_data(as_text=True)
 
-    #         self.assertEqual(resp.status_code, 401)
-    #         self.assertIn("Unauthorized", html)
+            self.assertEqual(resp.status_code, 401)
+            self.assertIn("Unauthorized", html)
 
-    # def test_delete_message(self):
-    #     """Should be able to delete messages"""
+class MessageDeleteViewTestCase(MessageBaseViewTestCase):
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.u1.id
+    def test_delete_message(self):
+        """Should be able to delete messages"""
 
-    #         resp = c.post(f"/messages/{self.m1.id}/delete")
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1.id
 
-    #         self.assertEqual(resp.status_code, 302)
+            resp = c.post(f"/messages/{self.m1.id}/delete")
 
-    #         self.assertIsNone(Message
-    #                              .query
-    #                              .filter_by(text=self.m1.text)
-    #                              .one_or_none())
-    #         self.assertEqual(Message.query.count(), 0)
+            self.assertEqual(resp.status_code, 302)
 
-    # def test_delete_message_unauth(self):
-    #     """
-    #     Should not be able to delete message if not original poster/authorized
-    #     """
+            self.assertIsNone(Message
+                                 .query
+                                 .filter_by(text=self.m1.text)
+                                 .one_or_none())
+            self.assertEqual(Message.query.count(), 0)
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.u2.id
+    def test_delete_message_unauth(self):
+        """
+        Should not be able to delete message if not original poster/authorized
+        """
 
-    #         resp = c.post(
-    #             f"/messages/{self.m1.id}/delete",
-    #             follow_redirects=True
-    #         )
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u2.id
 
-    #         html = resp.get_data(as_text=True)
+            resp = c.post(
+                f"/messages/{self.m1.id}/delete",
+                follow_redirects=True
+            )
 
-    #         self.assertEqual(resp.status_code, 401)
-    #         self.assertIn("Unauthorized", html)
+            html = resp.get_data(as_text=True)
 
-    # def test_show_messages_with_delete_button_shown(self):
-    #     """Should show message. Show delete button for own user's message"""
+            self.assertEqual(resp.status_code, 401)
+            self.assertIn("Unauthorized", html)
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.u1.id
+class MessageShowViewTestCase(MessageBaseViewTestCase):
 
-    #         resp = c.get(
-    #             f"/messages/{self.m1.id}",
-    #             follow_redirects=True
-    #         )
+    def test_show_messages_with_delete_button_shown(self):
+        """Should show message. Show delete button for own user's message"""
 
-    #         html = resp.get_data(as_text=True)
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1.id
 
-    #         self.assertEqual(resp.status_code, 200)
-    #         self.assertIn(self.m1.text, html)
-    #         self.assertIn('Delete', html)
-    #         self.assertIn("Comment for messages/show.html loaded.", html)
+            resp = c.get(
+                f"/messages/{self.m1.id}",
+                follow_redirects=True
+            )
 
-    # def test_show_messages_without_delete_button_shown(self):
-    #     """Should show message. Do not show delete button if not owned"""
+            html = resp.get_data(as_text=True)
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.u2.id
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(self.m1.text, html)
+            self.assertIn('Delete', html)
+            self.assertIn("Comment for messages/show.html loaded.", html)
 
-    #         resp = c.get(
-    #             f"/messages/{self.m1.id}",
-    #             follow_redirects=True
-    #         )
+    def test_show_messages_without_delete_button_shown(self):
+        """Should show message. Do not show delete button if not owned"""
 
-    #         html = resp.get_data(as_text=True)
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u2.id
 
-    #         self.assertEqual(resp.status_code, 200)
-    #         self.assertIn(self.m1.text, html)
-    #         self.assertNotIn('Delete', html)
-    #         self.assertIn("Comment for messages/show.html loaded.", html)
+            resp = c.get(
+                f"/messages/{self.m1.id}",
+                follow_redirects=True
+            )
+
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(self.m1.text, html)
+            self.assertNotIn('Delete', html)
+            self.assertIn("Comment for messages/show.html loaded.", html)
 
 
-    # def test_show_messages_unauth(self):
-    #     """Should not show message if unauthorized"""
+    def test_show_messages_unauth(self):
+        """Should not show message if unauthorized"""
 
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = None
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = None
 
-    #         resp = c.get(
-    #             f"/messages/{self.m1.id}",
-    #             follow_redirects=True
-    #         )
+            resp = c.get(
+                f"/messages/{self.m1.id}",
+                follow_redirects=True
+            )
 
-    #         html = resp.get_data(as_text=True)
+            html = resp.get_data(as_text=True)
 
-    #         self.assertEqual(resp.status_code, 200)
-    #         self.assertIn("Access unauthorized", html)
-    #         self.assertNotIn("Comment for messages/show.html loaded.", html)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", html)
+            self.assertNotIn("Comment for messages/show.html loaded.", html)
+
+class MessageLikeViewTestCase(MessageBaseViewTestCase):
 
     def test_like_message(self):
         """Should be able to like a message"""
@@ -208,6 +199,8 @@ class MessageBaseViewTestCase(TestCase):
                                  .filter_by(message_id=self.m1.id)
                                  .one_or_none())
             self.assertEqual(Like.query.count(), 1)
+            self.assertEqual(len(self.u2.messages_liked), 1)
+            self.assertEqual(len(self.m1.liking_users), 1)
 
             resp = c.get(resp.location)
             html = resp.get_data(as_text=True)
@@ -233,6 +226,8 @@ class MessageBaseViewTestCase(TestCase):
                                  .filter_by(message_id=self.m1.id)
                                  .one_or_none())
             self.assertEqual(Like.query.count(), 0)
+            self.assertNotEqual(len(self.u1.messages_liked), 1)
+            self.assertNotEqual(len(self.m1.liking_users), 1)
 
             resp = c.get(resp.location)
             html = resp.get_data(as_text=True)
@@ -240,26 +235,109 @@ class MessageBaseViewTestCase(TestCase):
             self.assertIn("You cannot like your own Warble!", html)
             self.assertNotIn("bi-star-fill", html)
 
+    def test_like_messages_unauth(self):
+        """Should not be able to like if unauthorized"""
 
-#test show liekd Messages
-#test add message
-# test show message
-#test delete message
-#test like message
-#test unlike message
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = None
 
-# def test_new_note_ok(self):
-#         with app.test_client() as client:
-#             with client.session_transaction() as sess:
-#                 sess["username"] = "user-1"
-#             resp = client.post(
-#                 "/users/user-1/notes/new",
-#                 data={
-#                     "title": "Title",
-#                     "content": "Content",
-#                 }
-#             )
-#             self.assertEqual(resp.status_code, 302)
-#             self.assertEqual(resp.location, "/users/user-1")
+            resp = c.post(f'/messages/{self.m1.id}/like', follow_redirects=True)
 
-#             self.assertEqual(Note.query.count(), 2)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 401)
+            self.assertIn("Unauthorized", html)
+            self.assertNotIn("bi-star", html)
+            self.assertNotEqual(len(self.m1.liking_users), 1)
+
+    def test_show_liked_messages(self):
+        """Should show a user's liked messages"""
+
+        self.u2.messages_liked.append(self.m1)
+        db.session.commit()
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u2.id
+
+            resp = c.get(f'/users/{self.u2.id}/messages/liked')
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(self.u1.username, html)
+            self.assertIn(self.m1.text, html)
+            self.assertIn('Comment for users/liked.html loaded', html)
+
+
+    def test_show_liked_messages_unauth(self):
+        """Should not show a user's liked messages if not logged in"""
+
+        self.u2.messages_liked.append(self.m1)
+        db.session.commit()
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = None
+
+            resp = c.get(
+                f'/users/{self.u2.id}/messages/liked',
+                follow_redirects=True
+            )
+
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", html)
+            self.assertNotIn(self.m1.text, html)
+            self.assertNotIn('Comment for users/liked.html loaded', html)
+
+class MessageUnlikeViewTestCase(MessageBaseViewTestCase):
+
+    def test_unlike_message(self):
+        """Should be able to unlike a message"""
+
+        self.u2.messages_liked.append(self.m1)
+        db.session.commit()
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u2.id
+
+            resp = c.post(f'/messages/{self.m1.id}/unlike')
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, f'/messages/{self.m1.id}')
+
+            self.assertNotIn(self.m1, self.u2.messages_liked)
+
+            self.assertIsNone(Like
+                                 .query
+                                 .filter_by(message_id=self.m1.id)
+                                 .one_or_none())
+            self.assertNotEqual(Like.query.count(), 1)
+            self.assertNotEqual(len(self.u2.messages_liked), 1)
+            self.assertNotEqual(len(self.m1.liking_users), 1)
+
+            resp = c.get(resp.location)
+            html = resp.get_data(as_text=True)
+
+            self.assertNotIn("bi-star-fill", html)
+
+    def test_unlike_messages_not_liked(self):
+        """Should stay unliked if unliked"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u2.id
+
+            resp = c.post(
+                f'/messages/{self.m1.id}/unlike',
+                follow_redirects=True
+            )
+
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertNotIn("bi-star-fill", html)
+            self.assertNotEqual(self.u2.messages_liked, 1)
