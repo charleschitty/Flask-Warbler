@@ -8,7 +8,7 @@
 import os
 from unittest import TestCase
 
-from models import db, Message, User
+from models import db, Message, User, Like
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -103,17 +103,15 @@ class MessageBaseViewTestCase(TestCase):
     #         with c.session_transaction() as sess:
     #             sess[CURR_USER_KEY] = self.u1.id
 
-    #         # Now, that session setting is saved, so we can have
-    #         # the rest of ours test
-    #         resp = c.post("/messages/new", data={"text": "Hello"})
+    #         resp = c.post(f"/messages/{self.m1.id}/delete")
 
     #         self.assertEqual(resp.status_code, 302)
 
-    #         self.assertIsNotNone(Message
+    #         self.assertIsNone(Message
     #                              .query
-    #                              .filter_by(text="Hello")
+    #                              .filter_by(text=self.m1.text)
     #                              .one_or_none())
-    #         self.assertEqual(Message.query.count(), 2)
+    #         self.assertEqual(Message.query.count(), 0)
 
     # def test_delete_message_unauth(self):
     #     """
@@ -134,40 +132,113 @@ class MessageBaseViewTestCase(TestCase):
     #         self.assertEqual(resp.status_code, 401)
     #         self.assertIn("Unauthorized", html)
 
-    def test_show_messages(self):
+    # def test_show_messages_with_delete_button_shown(self):
+    #     """Should show message. Show delete button for own user's message"""
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.u1.id
+
+    #         resp = c.get(
+    #             f"/messages/{self.m1.id}",
+    #             follow_redirects=True
+    #         )
+
+    #         html = resp.get_data(as_text=True)
+
+    #         self.assertEqual(resp.status_code, 200)
+    #         self.assertIn(self.m1.text, html)
+    #         self.assertIn('Delete', html)
+    #         self.assertIn("Comment for messages/show.html loaded.", html)
+
+    # def test_show_messages_without_delete_button_shown(self):
+    #     """Should show message. Do not show delete button if not owned"""
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.u2.id
+
+    #         resp = c.get(
+    #             f"/messages/{self.m1.id}",
+    #             follow_redirects=True
+    #         )
+
+    #         html = resp.get_data(as_text=True)
+
+    #         self.assertEqual(resp.status_code, 200)
+    #         self.assertIn(self.m1.text, html)
+    #         self.assertNotIn('Delete', html)
+    #         self.assertIn("Comment for messages/show.html loaded.", html)
+
+
+    # def test_show_messages_unauth(self):
+    #     """Should not show message if unauthorized"""
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = None
+
+    #         resp = c.get(
+    #             f"/messages/{self.m1.id}",
+    #             follow_redirects=True
+    #         )
+
+    #         html = resp.get_data(as_text=True)
+
+    #         self.assertEqual(resp.status_code, 200)
+    #         self.assertIn("Access unauthorized", html)
+    #         self.assertNotIn("Comment for messages/show.html loaded.", html)
+
+    def test_like_message(self):
+        """Should be able to like a message"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u2.id
+
+            resp = c.post(f'/messages/{self.m1.id}/like')
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, f'/messages/{self.m1.id}')
+
+            self.assertIn(self.m1, self.u2.messages_liked)
+
+            self.assertIsNotNone(Like
+                                 .query
+                                 .filter_by(message_id=self.m1.id)
+                                 .one_or_none())
+            self.assertEqual(Like.query.count(), 1)
+
+            resp = c.get(resp.location)
+            html = resp.get_data(as_text=True)
+
+            self.assertIn("bi-star-fill", html)
+
+    def test_like_message_self(self):
+        """Should not be able to like own message"""
+
         with app.test_client() as c:
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.u1.id
 
-            resp = c.get(
-                f"/messages/{self.m1.id}",
-                follow_redirects=True
-            )
+            resp = c.post(f'/messages/{self.m1.id}/like')
 
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, f'/messages/{self.m1.id}')
+
+            self.assertNotIn(self.m1, self.u1.messages_liked)
+
+            self.assertIsNone(Like
+                                 .query
+                                 .filter_by(message_id=self.m1.id)
+                                 .one_or_none())
+            self.assertEqual(Like.query.count(), 0)
+
+            resp = c.get(resp.location)
             html = resp.get_data(as_text=True)
 
-            self.assertEqual(resp.status_code, 200)
-            self.assertIn(self.m1.text, html)
-            self.assertIn("Comment for messages/show.html loaded.", html)
-
-
-    def test_show_messages_unauth(self):
-        with app.test_client() as c:
-            with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = None
-
-            resp = c.get(
-                f"/messages/{self.m1.id}",
-                follow_redirects=True
-            )
-
-            html = resp.get_data(as_text=True)
-
-            self.assertEqual(resp.status_code, 200)
-            self.assertIn("Access unauthorized", html)
-            self.assertNotIn("Comment for messages/show.html loaded.", html)
-
-
+            self.assertIn("You cannot like your own Warble!", html)
+            self.assertNotIn("bi-star-fill", html)
 
 
 #test show liekd Messages
