@@ -271,13 +271,13 @@ class UserProfileViewTestCase(UserBaseViewTestCase):
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.u1.id
             resp = c.get(
-                f"/users/{self.u1.id}",
+                f"/users/{self.u2.id}",
             )
 
             html = resp.get_data(as_text=True)
 
             self.assertIn("Comment for users/show.html loaded.", html)
-            self.assertIn(self.u1.username, html)
+            self.assertIn(self.u2.username, html)
 
     def test_show_user_unauth(self):
         """Should not allow unauth user"""
@@ -483,6 +483,24 @@ class UserProfileViewTestCase(UserBaseViewTestCase):
 
             self.assertIn(self.u2, self.u1.following)
             self.assertEqual(len(self.u1.following), 1)
+
+    def test_unable_to_follow_self(self):
+        """Should not be able to follow own user"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1.id
+
+            resp = c.post(
+                f'/users/follow/{self.u1.id}',
+                follow_redirects=True
+            )
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("You cannot follow yourself!", html)
+            self.assertNotIn(self.u1, self.u1.following)
+            self.assertNotIn(self.u1, self.u1.followers)
 
     def test_follow_user_again(self):
         """Should have no change if try to follow a user twice"""

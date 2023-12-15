@@ -43,28 +43,152 @@ class MessageBaseViewTestCase(TestCase):
     def setUp(self):
         User.query.delete()
 
-        u1 = User.signup("u1", "u1@email.com", "password", None)
+        self.u1 = User.signup("u1", "u1@email.com", "password", None)
+        self.u2 = User.signup("u2", "u2@email.com", "password", None)
         db.session.flush()
 
-        m1 = Message(text="m1-text", user_id=u1.id)
-        db.session.add_all([m1])
+        self.m1 = Message(text="m1-text", user_id=self.u1.id)
+        db.session.add_all([self.m1])
         db.session.commit()
 
-        self.u1_id = u1.id
-        self.m1_id = m1.id
+# class MessageAddViewTestCase(MessageBaseViewTestCase):
+#     def test_add_message_form(self):
+#         """Should load add message form"""
 
-class MessageAddViewTestCase(MessageBaseViewTestCase):
-    def test_add_message(self):
-        # Since we need to change the session to mimic logging in,
-        # we need to use the changing-session trick:
+#         with app.test_client() as c:
+#             with c.session_transaction() as sess:
+#                 sess[CURR_USER_KEY] = self.u1.id
+
+#             resp = c.get("/messages/new")
+#             html = resp.get_data(as_text=True)
+
+#             self.assertEqual(resp.status_code, 200)
+#             self.assertIn("Comment for messages/create.html loaded.", html)
+
+    # def test_add_message(self):
+    #     """Should be able to add messages"""
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.u1.id
+
+    #         resp = c.post("/messages/new", data={"text": "Hello"})
+
+    #         self.assertEqual(resp.status_code, 302)
+
+    #         self.assertIsNotNone(Message
+    #                              .query
+    #                              .filter_by(text="Hello")
+    #                              .one_or_none())
+    #         self.assertEqual(Message.query.count(), 2)
+    #         self.assertNotIn(self.m1.id, self.u2.messages)
+
+    # def test_add_message_unauth(self):
+    #     """Should not be able to add messages if not logged-in"""
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = None
+
+    #         resp = c.post("/messages/new", follow_redirects=True)
+    #         html = resp.get_data(as_text=True)
+
+    #         self.assertEqual(resp.status_code, 401)
+    #         self.assertIn("Unauthorized", html)
+
+    # def test_delete_message(self):
+    #     """Should be able to delete messages"""
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.u1.id
+
+    #         # Now, that session setting is saved, so we can have
+    #         # the rest of ours test
+    #         resp = c.post("/messages/new", data={"text": "Hello"})
+
+    #         self.assertEqual(resp.status_code, 302)
+
+    #         self.assertIsNotNone(Message
+    #                              .query
+    #                              .filter_by(text="Hello")
+    #                              .one_or_none())
+    #         self.assertEqual(Message.query.count(), 2)
+
+    # def test_delete_message_unauth(self):
+    #     """
+    #     Should not be able to delete message if not original poster/authorized
+    #     """
+
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.u2.id
+
+    #         resp = c.post(
+    #             f"/messages/{self.m1.id}/delete",
+    #             follow_redirects=True
+    #         )
+
+    #         html = resp.get_data(as_text=True)
+
+    #         self.assertEqual(resp.status_code, 401)
+    #         self.assertIn("Unauthorized", html)
+
+    def test_show_messages(self):
         with app.test_client() as c:
             with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = self.u1_id
+                sess[CURR_USER_KEY] = self.u1.id
 
-            # Now, that session setting is saved, so we can have
-            # the rest of ours test
-            resp = c.post("/messages/new", data={"text": "Hello"})
+            resp = c.get(
+                f"/messages/{self.m1.id}",
+                follow_redirects=True
+            )
 
-            self.assertEqual(resp.status_code, 302)
+            html = resp.get_data(as_text=True)
 
-            Message.query.filter_by(text="Hello").one()
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(self.m1.text, html)
+            self.assertIn("Comment for messages/show.html loaded.", html)
+
+
+    def test_show_messages_unauth(self):
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = None
+
+            resp = c.get(
+                f"/messages/{self.m1.id}",
+                follow_redirects=True
+            )
+
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", html)
+            self.assertNotIn("Comment for messages/show.html loaded.", html)
+
+
+
+
+#test show liekd Messages
+#test add message
+# test show message
+#test delete message
+#test like message
+#test unlike message
+
+# def test_new_note_ok(self):
+#         with app.test_client() as client:
+#             with client.session_transaction() as sess:
+#                 sess["username"] = "user-1"
+#             resp = client.post(
+#                 "/users/user-1/notes/new",
+#                 data={
+#                     "title": "Title",
+#                     "content": "Content",
+#                 }
+#             )
+#             self.assertEqual(resp.status_code, 302)
+#             self.assertEqual(resp.location, "/users/user-1")
+
+#             self.assertEqual(Note.query.count(), 2)
